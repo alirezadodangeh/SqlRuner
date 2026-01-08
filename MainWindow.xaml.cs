@@ -403,17 +403,31 @@ namespace SqlRuner
                 }
                 else
                 {
-                    StatusTextBlock.Text = $"کوئری بارگذاری شد - ناموفق - {selectedHistory.ExecutedAt:yyyy/MM/dd HH:mm:ss}";
-                    
-                    // Show error dialog if there's an error message
-                    if (!string.IsNullOrEmpty(selectedHistory.ErrorMessage))
+                    StatusTextBlock.Text = $"کوئری بارگذاری شد - ناموفق - {selectedHistory.ExecutedAt:yyyy/MM/dd HH:mm:ss} (دوبار کلیک کنید تا خطا را ببینید)";
+                }
+            }
+        }
+
+        private void HistoryDataGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (HistoryDataGrid.SelectedItem is QueryHistory selectedHistory)
+            {
+                // Show error dialog if there's an error message
+                if (!selectedHistory.IsSuccessful && !string.IsNullOrEmpty(selectedHistory.ErrorMessage))
+                {
+                    var errorDialog = new ErrorDialog(selectedHistory.ErrorMessage)
                     {
-                        var errorDialog = new ErrorDialog(selectedHistory.ErrorMessage)
-                        {
-                            Owner = this
-                        };
-                        errorDialog.ShowDialog();
-                    }
+                        Owner = this
+                    };
+                    errorDialog.ShowDialog();
+                }
+                else if (selectedHistory.IsSuccessful)
+                {
+                    var recordInfo = selectedHistory.RecordCount.HasValue 
+                        ? $" - {selectedHistory.RecordCount} ردیف بازگردانده شد" 
+                        : "";
+                    MessageBox.Show($"این کوئری با موفقیت اجرا شده است.{recordInfo}", 
+                        "کوئری موفق", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
         }
