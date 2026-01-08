@@ -115,8 +115,7 @@ namespace SqlRuner
                 var selectQuery = @"
                     SELECT Id, ConnectionString, Query, ExecutedAt, ErrorMessage, IsSuccessful, RecordCount
                     FROM QueryHistory
-                    ORDER BY ExecutedAt DESC
-                    LIMIT 100";
+                    ORDER BY ExecutedAt DESC";
 
                 using var command = new SQLiteCommand(selectQuery, connection);
                 using var reader = command.ExecuteReader();
@@ -162,6 +161,43 @@ namespace SqlRuner
             }
 
             return history;
+        }
+
+        public int GetHistoryCount()
+        {
+            try
+            {
+                using var connection = new SQLiteConnection($"Data Source={_dbPath};Version=3;");
+                connection.Open();
+
+                var countQuery = "SELECT COUNT(*) FROM QueryHistory";
+                using var command = new SQLiteCommand(countQuery, connection);
+                var result = command.ExecuteScalar();
+                return Convert.ToInt32(result);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting history count: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public void DeleteAllHistory()
+        {
+            try
+            {
+                using var connection = new SQLiteConnection($"Data Source={_dbPath};Version=3;");
+                connection.Open();
+
+                var deleteQuery = "DELETE FROM QueryHistory";
+                using var command = new SQLiteCommand(deleteQuery, connection);
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error deleting history: {ex.Message}");
+                throw;
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SQLite;
@@ -12,6 +13,9 @@ namespace SqlRuner
     public partial class MainWindow : Window
     {
         private readonly DatabaseHelper _dbHelper;
+        private List<QueryHistory> _allHistory = new List<QueryHistory>();
+        private int _currentPage = 1;
+        private const int _pageSize = 10;
 
         public MainWindow()
         {
@@ -20,10 +24,10 @@ namespace SqlRuner
             LoadHistory();
             
             // Try to load last connection string if exists
-            var lastHistory = _dbHelper.GetQueryHistory().FirstOrDefault();
-            if (lastHistory != null && !string.IsNullOrEmpty(lastHistory.ConnectionString))
+            var allHistory = _dbHelper.GetQueryHistory();
+            if (allHistory.Count > 0 && !string.IsNullOrEmpty(allHistory[0].ConnectionString))
             {
-                ConnectionStringTextBox.Text = lastHistory.ConnectionString;
+                ConnectionStringTextBox.Text = allHistory[0].ConnectionString;
             }
         }
 
@@ -360,13 +364,13 @@ namespace SqlRuner
         {
             try
             {
-                var history = _dbHelper.GetQueryHistory();
-                HistoryDataGrid.ItemsSource = null; // Clear first to force refresh
-                HistoryDataGrid.ItemsSource = history;
+                _allHistory = _dbHelper.GetQueryHistory();
+                _currentPage = 1;
+                UpdateHistoryDisplay();
                 
-                if (history.Count > 0)
+                if (_allHistory.Count > 0)
                 {
-                    StatusTextBlock.Text = $"تاریخچه بارگذاری شد - {history.Count} کوئری";
+                    StatusTextBlock.Text = $"تاریخچه بارگذاری شد - {_allHistory.Count} کوئری";
                 }
                 else
                 {
@@ -377,6 +381,120 @@ namespace SqlRuner
             {
                 StatusTextBlock.Text = "خطا در بارگذاری تاریخچه";
                 MessageBox.Show($"خطا در بارگذاری تاریخچه:\n{ex.Message}\n\n{ex.StackTrace}", "خطا", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void UpdateHistoryDisplay()
+        {
+            try
+            {
+                int totalPages = (int)Math.Ceiling((double)_allHistory.Count / _pageSize);
+                
+                if (totalPages == 0)
+                {
+                    totalPages = 1;
+                }
+
+                if (_currentPage > totalPages)
+                {
+                    _currentPage = totalPages;
+                }
+
+                if (_currentPage < 1)
+                {
+                    _currentPage = 1;
+                }
+
+                // Get items for current page
+                int startIndex = (_currentPage - 1) * _pageSize;
+                int endIndex = Math.Min(startIndex + _pageSize, _allHistory.Count);
+                
+                var pageItems = startIndex < _allHistory.Count 
+                    ? _allHistory.Skip(startIndex).Take(endIndex - startIndex).ToList()
+                    : new List<QueryHistory>();
+
+                HistoryDataGrid.ItemsSource = null;
+                HistoryDataGrid.ItemsSource = pageItems;
+
+                // Update pagination controls
+                PageInfoTextBlock.Text = $"صفحه {_currentPage} از {totalPages}";
+                
+                FirstPageButton.IsEnabled = _currentPage > 1;
+                PreviousPageButton.IsEnabled = _currentPage > 1;
+                NextPageButton.IsEnabled = _currentPage < totalPages;
+                LastPageButton.IsEnabled = _currentPage < totalPages;
+
+                // Update status
+                if (_allHistory.Count > 0)
+                {
+                    StatusTextBlock.Text = $"تاریخچه: {_allHistory.Count} کوئری - صفحه {_currentPage} از {totalPages}";
+                }
+                else
+                {
+                    StatusTextBlock.Text = "تاریخچه خالی است";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"خطا در نمایش تاریخچه:\n{ex.Message}", "خطا", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void FirstPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            _currentPage = 1;
+            UpdateHistoryDisplay();
+        }
+
+        private void PreviousPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentPage > 1)
+            {
+                _currentPage--;
+                UpdateHistoryDisplay();
+            }
+        }
+
+        private void NextPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            int totalPages = (int)Math.Ceiling((double)_allHistory.Count / _pageSize);
+            if (_currentPage < totalPages)
+            {
+                _currentPage++;
+                UpdateHistoryDisplay();
+            }
+        }
+
+        private void LastPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            int totalPages = (int)Math.Ceiling((double)_allHistory.Count / _pageSize);
+            if (totalPages > 0)
+            {
+                _currentPage = totalPages;
+                UpdateHistoryDisplay();
+            }
+        }
+
+        private void DeleteHistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "آیا مطمئن هستید که می‌خواهید تمام تاریخچه را حذف کنید؟\nاین عمل قابل بازگشت نیست.",
+                "تأیید حذف تاریخچه",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    _dbHelper.DeleteAllHistory();
+                    LoadHistory(); // Reload (will be empty now)
+                    MessageBox.Show("تمام تاریخچه با موفقیت حذف شد.", "حذف موفق", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"خطا در حذف تاریخچه:\n{ex.Message}", "خطا", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
