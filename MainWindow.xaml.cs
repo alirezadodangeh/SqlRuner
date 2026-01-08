@@ -130,10 +130,12 @@ namespace SqlRuner
                 ResultsDataGrid.ItemsSource = dataTable.DefaultView;
                 ResultsDataGrid.AutoGenerateColumns = true;
 
-                // Save to history with success status
+                var recordCount = dataTable.Rows.Count;
+
+                // Save to history with success status and record count
                 try
                 {
-                    _dbHelper.SaveQuery(connectionString, query, isSuccessful: true, errorMessage: null);
+                    _dbHelper.SaveQuery(connectionString, query, isSuccessful: true, errorMessage: null, recordCount: recordCount);
                 }
                 catch (Exception saveEx)
                 {
@@ -143,7 +145,7 @@ namespace SqlRuner
                 // Refresh history
                 LoadHistory();
 
-                StatusTextBlock.Text = $"موفق - {dataTable.Rows.Count} ردیف بازگردانده شد";
+                StatusTextBlock.Text = $"موفق - {recordCount} ردیف بازگردانده شد";
             }
             catch (Exception ex)
             {
@@ -155,10 +157,10 @@ namespace SqlRuner
                 // Build comprehensive error message
                 var errorMessage = BuildErrorMessage(ex, normalizedConnStr);
                 
-                // Save to history with error
+                // Save to history with error (no record count for failed queries)
                 try
                 {
-                    _dbHelper.SaveQuery(connectionString, query, isSuccessful: false, errorMessage: errorMessage);
+                    _dbHelper.SaveQuery(connectionString, query, isSuccessful: false, errorMessage: errorMessage, recordCount: null);
                 }
                 catch (Exception saveEx)
                 {
@@ -359,8 +361,8 @@ namespace SqlRuner
             try
             {
                 var history = _dbHelper.GetQueryHistory();
-                HistoryListBox.ItemsSource = null; // Clear first to force refresh
-                HistoryListBox.ItemsSource = history;
+                HistoryDataGrid.ItemsSource = null; // Clear first to force refresh
+                HistoryDataGrid.ItemsSource = history;
                 
                 if (history.Count > 0)
                 {
@@ -379,9 +381,9 @@ namespace SqlRuner
         }
 
 
-        private void HistoryListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void HistoryDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (HistoryListBox.SelectedItem is QueryHistory selectedHistory)
+            if (HistoryDataGrid.SelectedItem is QueryHistory selectedHistory)
             {
                 // Populate query text box with selected history item
                 QueryTextBox.Text = selectedHistory.Query;
@@ -394,7 +396,10 @@ namespace SqlRuner
 
                 if (selectedHistory.IsSuccessful)
                 {
-                    StatusTextBlock.Text = $"کوئری بارگذاری شد - موفق - {selectedHistory.ExecutedAt:yyyy/MM/dd HH:mm:ss}";
+                    var recordInfo = selectedHistory.RecordCount.HasValue 
+                        ? $" - {selectedHistory.RecordCount} ردیف" 
+                        : "";
+                    StatusTextBlock.Text = $"کوئری بارگذاری شد - موفق{recordInfo} - {selectedHistory.ExecutedAt:yyyy/MM/dd HH:mm:ss}";
                 }
                 else
                 {

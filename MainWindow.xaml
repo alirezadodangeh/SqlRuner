@@ -9,16 +9,18 @@
         <local:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
         <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
         <local:NullToVisibilityConverter x:Key="NullToVisibility"/>
+        <local:BoolToStatusColorConverter x:Key="BoolToStatusColor"/>
     </Window.Resources>
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*" MinWidth="400"/>
+            <ColumnDefinition Width="10*" MinWidth="400"/>
+            <ColumnDefinition Width="448*"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*" MinWidth="300"/>
+            <ColumnDefinition Width="229*" MinWidth="300"/>
         </Grid.ColumnDefinitions>
 
         <!-- Main Content Area -->
-        <Grid Grid.Column="0">
+        <Grid Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,5,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -103,86 +105,92 @@
         </Grid>
 
         <!-- Splitter -->
-        <GridSplitter Grid.Column="1" 
+        <GridSplitter Grid.Column="2" 
                       Width="5" 
-                      HorizontalAlignment="Center" 
-                      VerticalAlignment="Stretch"
+                      HorizontalAlignment="Center"
                       Background="LightGray"
                       ResizeBehavior="PreviousAndNext"/>
 
         <!-- History Panel -->
-        <Grid Grid.Column="2" Margin="10,0,0,0">
+        <Grid Grid.Column="3" Margin="10,0,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            
+
             <GroupBox Header="تاریخچه کوئری‌های اجرا شده" Grid.Row="0">
             </GroupBox>
-            
-            <ListBox x:Name="HistoryListBox" 
+
+            <DataGrid x:Name="HistoryDataGrid" 
                      Grid.Row="1"
                      Margin="0,10,0,0"
-                     SelectionChanged="HistoryListBox_SelectionChanged"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Border BorderBrush="#E0E0E0" 
-                                BorderThickness="0,0,0,1" 
-                                Padding="8,8,8,8"
-                                Margin="0,0,0,5"
-                                CornerRadius="3">
-                            <Border.Background>
-                                <Binding Path="IsSuccessful" Converter="{StaticResource BoolToBrush}"/>
-                            </Border.Background>
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                    <TextBlock Text="{Binding ExecutedAt, StringFormat='📅 {0:yyyy/MM/dd HH:mm:ss}'}" 
-                                               FontWeight="Bold" 
-                                               FontSize="11"
-                                               Foreground="#666666"/>
-                                    <TextBlock Text=" ✓" 
-                                               Foreground="Green"
-                                               FontWeight="Bold"
-                                               Visibility="{Binding IsSuccessful, Converter={StaticResource BoolToVisibility}}"/>
-                                    <TextBlock Text=" ✗" 
-                                               Foreground="Red"
-                                               FontWeight="Bold"
-                                               Visibility="{Binding IsSuccessful, Converter={StaticResource InverseBoolToVisibility}}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding Query}" 
-                                           TextWrapping="Wrap"
-                                           FontFamily="Consolas"
-                                           FontSize="11"
-                                           MaxHeight="60"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding Query}"/>
-                                <TextBlock Text="{Binding ConnectionString, StringFormat='🔗 {0}'}" 
-                                           FontSize="9"
-                                           Foreground="#888888"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="0,3,0,0"
-                                           ToolTip="{Binding ConnectionString}"/>
-                                <TextBlock Text="{Binding ErrorMessage, StringFormat='❌ خطا: {0}'}" 
-                                           FontSize="10"
-                                           Foreground="Red"
-                                           TextWrapping="Wrap"
-                                           MaxHeight="40"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="0,3,0,0"
-                                           Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}"
-                                           ToolTip="{Binding ErrorMessage}"/>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-                <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
-                        <Setter Property="Padding" Value="0"/>
-                        <Setter Property="Margin" Value="0,0,0,2"/>
+                     AutoGenerateColumns="False"
+                     IsReadOnly="True"
+                     SelectionMode="Single"
+                     SelectionChanged="HistoryDataGrid_SelectionChanged"
+                     MouseDoubleClick="HistoryDataGrid_MouseDoubleClick"
+                     GridLinesVisibility="All"
+                     HeadersVisibility="Column"
+                     AlternatingRowBackground="#F5F5F5"
+                     CanUserAddRows="False"
+                     CanUserDeleteRows="False"
+                     RowBackground="White">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="تاریخ/زمان" 
+                                       Binding="{Binding ExecutedAt, StringFormat='{}{0:yyyy/MM/dd HH:mm:ss}'}" 
+                                       Width="140"
+                                       FontSize="10"/>
+                    <DataGridTextColumn Header="وضعیت" 
+                                       Binding="{Binding Status}" 
+                                       Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{Binding IsSuccessful, Converter={StaticResource BoolToStatusColor}}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="تعداد رکورد" 
+                                       Binding="{Binding RecordCountDisplay}" 
+                                       Width="90"
+                                       FontFamily="Consolas"
+                                       FontSize="11">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="Foreground" Value="{Binding IsSuccessful, Converter={StaticResource BoolToStatusColor}}"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="کوئری" 
+                                       Binding="{Binding Query}" 
+                                       Width="*"
+                                       FontFamily="Consolas"
+                                       FontSize="10">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                <Setter Property="ToolTip" Value="{Binding Query}"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="{Binding IsSuccessful, Converter={StaticResource BoolToBrush}}"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E3F2FD"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#BBDEFB"/>
+                            </Trigger>
+                        </Style.Triggers>
                     </Style>
-                </ListBox.ItemContainerStyle>
-            </ListBox>
+                </DataGrid.RowStyle>
+            </DataGrid>
         </Grid>
     </Grid>
 </Window>

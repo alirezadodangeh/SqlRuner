@@ -13,6 +13,9 @@ namespace SqlRuner
         public DateTime ExecutedAt { get; set; }
         public string? ErrorMessage { get; set; }
         public bool IsSuccessful { get; set; }
+        public int? RecordCount { get; set; }
+        public string Status { get => IsSuccessful ? "✓ موفق" : "✗ ناموفق"; }
+        public string RecordCountDisplay { get => RecordCount.HasValue ? RecordCount.Value.ToString() : "-"; }
     }
 
     public class DatabaseHelper
@@ -42,7 +45,8 @@ namespace SqlRuner
                     Query TEXT NOT NULL,
                     ExecutedAt DATETIME NOT NULL,
                     ErrorMessage TEXT,
-                    IsSuccessful INTEGER DEFAULT 1
+                    IsSuccessful INTEGER DEFAULT 1,
+                    RecordCount INTEGER
                 )";
 
             using var command = new SQLiteCommand(createTableQuery, connection);
@@ -62,9 +66,16 @@ namespace SqlRuner
                 alterCommand2.ExecuteNonQuery();
             }
             catch { /* Column may already exist */ }
+
+            try
+            {
+                using var alterCommand3 = new SQLiteCommand("ALTER TABLE QueryHistory ADD COLUMN RecordCount INTEGER", connection);
+                alterCommand3.ExecuteNonQuery();
+            }
+            catch { /* Column may already exist */ }
         }
 
-        public void SaveQuery(string connectionString, string query, bool isSuccessful = true, string? errorMessage = null)
+        public void SaveQuery(string connectionString, string query, bool isSuccessful = true, string? errorMessage = null, int? recordCount = null)
         {
             try
             {
@@ -72,8 +83,8 @@ namespace SqlRuner
                 connection.Open();
 
                 var insertQuery = @"
-                    INSERT INTO QueryHistory (ConnectionString, Query, ExecutedAt, ErrorMessage, IsSuccessful)
-                    VALUES (@connectionString, @query, @executedAt, @errorMessage, @isSuccessful)";
+                    INSERT INTO QueryHistory (ConnectionString, Query, ExecutedAt, ErrorMessage, IsSuccessful, RecordCount)
+                    VALUES (@connectionString, @query, @executedAt, @errorMessage, @isSuccessful, @recordCount)";
 
                 using var command = new SQLiteCommand(insertQuery, connection);
                 command.Parameters.AddWithValue("@connectionString", connectionString ?? string.Empty);
@@ -81,6 +92,7 @@ namespace SqlRuner
                 command.Parameters.AddWithValue("@executedAt", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 command.Parameters.AddWithValue("@errorMessage", errorMessage ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@isSuccessful", isSuccessful ? 1 : 0);
+                command.Parameters.AddWithValue("@recordCount", recordCount.HasValue ? (object)recordCount.Value : DBNull.Value);
 
                 command.ExecuteNonQuery();
             }
@@ -101,7 +113,7 @@ namespace SqlRuner
                 connection.Open();
 
                 var selectQuery = @"
-                    SELECT Id, ConnectionString, Query, ExecutedAt, ErrorMessage, IsSuccessful
+                    SELECT Id, ConnectionString, Query, ExecutedAt, ErrorMessage, IsSuccessful, RecordCount
                     FROM QueryHistory
                     ORDER BY ExecutedAt DESC
                     LIMIT 100";
@@ -129,6 +141,7 @@ namespace SqlRuner
 
                     var errorMessage = reader.IsDBNull(4) ? null : reader.GetString(4);
                     var isSuccessful = reader.IsDBNull(5) ? true : reader.GetInt32(5) == 1;
+                    var recordCount = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6);
 
                     history.Add(new QueryHistory
                     {
@@ -137,7 +150,8 @@ namespace SqlRuner
                         Query = reader.GetString(2),
                         ExecutedAt = executedAt,
                         ErrorMessage = errorMessage,
-                        IsSuccessful = isSuccessful
+                        IsSuccessful = isSuccessful,
+                        RecordCount = recordCount
                     });
                 }
             }
